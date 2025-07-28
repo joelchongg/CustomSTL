@@ -10,12 +10,13 @@ This project is intended as a deep dive into the internals of STL containers and
 
 ## 🔧 Planned Components
 
-- `customSTL::vector<T>` – dynamic array with allocator support and move semantics  
-- `customSTL::string` – custom string class with small string optimization (SSO)  
 - `customSTL::unique_ptr` - lightweight exclusive ownership smart pointer
 - `customSTL::shared_ptr<T>` – reference-counted smart pointer
-- `customSTL::unordered_map<K, V>` – hash table with custom probing  
-- `customSTL::map<K, V>` – balanced binary tree (e.g., red-black or AVL)  
+- `customSTL::vector<T>` – dynamic array with allocator support and move semantics
+- `customSTL::string` – custom string class with small string optimization (SSO)
+- `customSTL::allocator<T>` - custom memory allocator interface for containers
+- `customSTL::unordered_map<K, V>` – hash table with custom probing
+- `customSTL::map<K, V>` – balanced binary tree (e.g., red-black or AVL)
 - Custom memory allocators, benchmarking tools, and more
 
 All components will be:

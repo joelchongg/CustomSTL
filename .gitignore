@@ -1,0 +1,10 @@
+# Ignore build output
+build/
+*.o
+*.out
+*.exe
+*.obj
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
