@@ -4,6 +4,9 @@
 namespace customSTL {
     template <typename T>
     class unique_ptr {
+    private:
+        T* ptr_;
+
     public:
         unique_ptr() noexcept
             : ptr_ { nullptr }
@@ -58,9 +61,6 @@ namespace customSTL {
         T& operator*() const noexcept { return *ptr_; }
 
         T* operator->() const noexcept { return ptr_; }
-
-    private:
-        T* ptr_;
     };
 }
 
