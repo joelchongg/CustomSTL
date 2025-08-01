@@ -28,7 +28,7 @@ All components will be:
 
 As an aspiring software engineer with a strong interest in high-performance computing and system-level development, I'm using this project to explore the core building blocks of the C++ Standard Library. Reimplementing STL containers from scratch is a challenging but rewarding way to develop deeper insights into how C++ really works under the hood.
 
-For others reading this, I hope you find inspiration in the design decisions or gain a deeper understanding of how STL components are typically implemented (perhaps even take a shot at implementing it yourself!).
+For others reading this, I hope you find inspiration in the design decisions or gain a deeper understanding of how STL components are typically implemented (perhaps even take a shot at implementing it yourself!). More information regarding the design choices/ what I learnt while implementing each component can be found in `design/` under their respective Markdown files.
 
 ## ⚙️ Build Instructions (Coming Soon)
 

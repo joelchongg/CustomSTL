@@ -1,15 +1,19 @@
 cmake_minimum_required(VERSION 3.15)
 project(CustomSTL LANGUAGES CXX)
 
-# Uses C++23
+# Use C++23
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Include directory for your headers
+# Include directory for headers
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-# Executable for tests 
-# add_executable(test_vector test/test_vector.cpp) (Uncomment when test_vector.cpp exists)
+# Add executable target for your unique_ptr test
+add_executable(test_unique_ptr test/test_unique_ptr.cpp)
 
-# Compiler flags: Enable warnings only when executable target exists
-# target_compile_options(test_vector PRIVATE -Wall -Wextra) (Uncomment this after adding the executable above)
+# Set warning flags per compiler
+if(MSVC)
+    target_compile_options(test_unique_ptr PRIVATE /W4 /WX)  # /WX treats warnings as errors
+else()
+    target_compile_options(test_unique_ptr PRIVATE -Wall -Wextra -Werror)
+endif()

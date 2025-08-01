@@ -15,3 +15,22 @@ There are several ways to manage deleter storage, each with its own tradeoffs:
     This design separates optimization concerns from the main `unique_ptr` logic. The `CompressedPair` class conditionally inherits from either `S` or `T` based on whether it is empty, and stores the other as a regular member. This way, we can leverage on EBO to optimize the space usage of `unique_ptr`. Furthermore, the `CompressedPair` class can also be reused for other STL constructs (e.g., `tuple`, `optional`, `function`). However, some may feel that this adds abstraction complexity.
 
     For now, I have chosen to leverage EBO through private inheritance. It is simple and direct, and guarantees minimal space overhead for the common case. Furthermore, it is easier for people to understand and implement when focusing on `unique_ptr` alone. However, I may change to create and use a reusable `CompressedPair` utility class to handle more complex cases or multiple EBO candidates in other containers.
+
+### Substitution Failure Is Not An Error (SFINAE)
+Whilst exploring how to implement the array specialization for `unique_ptr`, I stumbled upon the `reset()` function overload, where we can reset `unique_ptr` with a pointer to another class, so long as the class is the same type or fulfils certain requirements.
+In order to check for this, we need to leverage SFINAE, such that the compiler knows when to use the function overload, and when to discard it from consideration. This is enabled by utilizing the `requires` or `std::enable_if` in the template parameter list, where we check if the pointer argument fulfils the requirements. I have chosen to use `requires` since it is cleaner, more readable and less error-prone than `std::enable_if`. More details can be found in `reset()` for the array specialization of `unique_ptr`.
+
+### Deleter Overload & `get_deleter()` Implementation
+In the implementation, you (as well as myself) may wonder why is there an overload for `get_deleter()`. For those that are new, this is to decouple **const or non-const** `unique_ptr`. If we call `get_deleter()` on a **non-const** `unique_ptr`, we will get mutable reference to the deleter. Similarly for a **const** `unique_ptr`.
+
+Additionally, you (as well as myself) may wonder how would we obtain a reference to the Deleter object, since I had chosen to leverage EBO earlier through private inheritance instead of storing it as a `CompressedPair`. In this case, we can simply use a cast to refer to the base class.
+
+# Constexpr/ Noexcept optimizations
+In order to increase compile-time usability and optimize performance, I have added `constexpr` and `noexcept` wherever possible (if there are any errors do let me know!). By making functions `constexpr`, it tells the compiler that the function can be computed at compile time, improving constant propagation and folding. This decreases the runtime cost. As for noexcept, it tells the compiler that the function will never throw an exception, allowing it to generate more optimized code since it does not need to generate stack unwinding or exception-handling metadata.
+&nbsp;
+As these optimizations will be included throughout any other containers/classes created in the future, I will no longer include the explanation for the usage of these keywords in subsequent designs.
+
+# Constructors
+The STL implements numerous constructors for different use cases of `unique_ptr`. This may be confusing as to how the implementation is being done, and how SFINAE is leveraged in order to determine which constructors can be used.
+
+The implementation for additional constructors for the specialized template will be done eventually.
