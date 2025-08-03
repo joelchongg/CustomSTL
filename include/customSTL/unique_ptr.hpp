@@ -127,9 +127,12 @@ namespace customSTL {
 
         constexpr void swap(unique_ptr& other) noexcept {
             std::swap(ptr_, other.ptr_);
+            std::swap(get_deleter(), other.get_deleter());
         }
 
         constexpr pointer get() noexcept { return ptr_; }
+
+        constexpr const pointer get() const noexcept { return ptr_; }
 
         constexpr Deleter& get_deleter() noexcept { return static_cast<Deleter&>(*this); }
 
@@ -137,9 +140,13 @@ namespace customSTL {
 
         constexpr operator bool() const noexcept { return ptr_; }
 
-        constexpr T& operator*() const noexcept { return *ptr_; }
+        constexpr T& operator*() noexcept { return *ptr_; }
 
-        constexpr pointer operator->() const noexcept { return ptr_; }
+        constexpr const T& operator*() const noexcept { return *ptr_; }
+
+        constexpr pointer operator->() noexcept { return ptr_; }
+
+        constexpr const pointer operator->() const noexcept { return ptr_; }
     };
 
     // Partial template specialization for arrays
@@ -217,9 +224,12 @@ namespace customSTL {
 
         constexpr void swap(unique_ptr& other) noexcept {
             std::swap(ptr_, other.ptr_);
+            std::swap(get_deleter(), other.get_deleter());
         }
 
         constexpr pointer get() noexcept { return ptr_; }
+
+        constexpr const pointer get() const noexcept { return ptr_; }
 
         constexpr Deleter& get_deleter() noexcept { return static_cast<Deleter&>(*this); }
 
@@ -228,6 +238,97 @@ namespace customSTL {
         constexpr operator bool() const noexcept { return ptr_; }
 
         constexpr T& operator[](std::size_t index) const { return ptr_[index]; }
+    };
+
+    template <typename T, std::size_t BufferSize = 64>
+    class small_unique_ptr {
+    public:
+        using element_type = T;
+        using pointer = T*;
+
+    private:
+        pointer ptr_;
+        alignas(std::max_align_t) std::byte buffer_[BufferSize];
+        bool constructed_inline_;
+
+    public:
+        constexpr small_unique_ptr() noexcept
+            : ptr_ { nullptr }
+            , constructed_inline_ { false }
+        { }
+
+        template <typename... Args>
+        constexpr explicit small_unique_ptr(Args&&... args) noexcept {
+            if (sizeof(element_type) <= BufferSize && alignof(element_type) <= alignof(std::max_align_t)) {
+                new (static_cast<void*>(&buffer_)) T(std::forward<Args>(args)...);
+                ptr_ = std::launder(reinterpret_cast<pointer>(&buffer_));
+                constructed_inline_ = true;
+            } else {
+                ptr_ = new T(std::forward<Args>(args)...);
+                constructed_inline_ = false;
+            }
+        }
+
+        ~small_unique_ptr() noexcept {
+            reset();
+        }
+
+        constexpr small_unique_ptr(small_unique_ptr&& other) noexcept {
+            move_from(other);
+        }
+        
+        constexpr small_unique_ptr& operator=(small_unique_ptr&& other) noexcept {
+            if (this == &other) {
+                return *this;
+            }
+
+            reset();
+            move_from(other);
+            
+            return *this;
+        }
+
+        // Copy Semantics Disabled
+        small_unique_ptr(const small_unique_ptr& other) = delete;
+        small_unique_ptr& operator=(const small_unique_ptr& other) = delete;
+
+        void reset() noexcept {
+            if (ptr_) {
+                if (constructed_inline_) {
+                    ptr_->~T();
+                } else {
+                    delete ptr_;
+                }
+                ptr_ = nullptr;
+                constructed_inline_ = false;
+            }
+        }
+
+        constexpr pointer get() noexcept { return ptr_; }
+
+        constexpr const pointer get() const noexcept { return ptr_; }
+        
+        constexpr pointer operator->() noexcept { return ptr_; }
+
+        constexpr const pointer operator->() const noexcept { return ptr_; }
+
+        constexpr T& operator*() noexcept { return *ptr_; }
+
+        constexpr const T& operator*() const noexcept { return *ptr_; }
+
+        constexpr explicit operator bool() const noexcept { return ptr_; }
+
+    private:
+        constexpr void move_from(small_unique_ptr& other) noexcept {
+            constructed_inline_ = other.constructed_inline_;
+            if (constructed_inline_) {
+                new (static_cast<void*>(&buffer_)) T(std::move(other.get()));
+                ptr_ = std::launder(reinterpret_cast<T*>(&buffer_));
+                other.reset();
+            } else {
+                ptr_ = std::exchange(other.ptr_, nullptr);
+            }
+        }
     };
 }
 

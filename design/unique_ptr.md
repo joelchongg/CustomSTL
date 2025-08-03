@@ -34,3 +34,39 @@ As these optimizations will be included throughout any other containers/classes 
 The STL implements numerous constructors for different use cases of `unique_ptr`. This may be confusing as to how the implementation is being done, and how SFINAE is leveraged in order to determine which constructors can be used.
 
 The implementation for additional constructors for the specialized template will be done eventually.
+
+# Small Object Optimization (SOO)
+While the standard `unique_ptr` in the C++ STL does not implement Small Object Optimization (SOO), I have decided to try to design and implement a custom smart pointer called `small_unique_ptr` that incorporates SOO to leverage its benefits.
+
+**What is SOO?**
+SOO is an optimization technique where small objects are stored directly inside the smart pointer itself (typically on the stack or within the smart pointer’s internal storage) instead of being dynamically allocated on the heap. This reduces the overhead of heap allocation and deallocation, which can be significant when managing many small objects.
+
+**Why SOO?**
+Automatic (stack or internal) storage is generally faster than dynamic (heap) storage due to reduced allocation overhead and better cache locality. By storing small objects inline, `small_unique_ptr` reduces pointer indirection and eliminates many calls to new and delete, improving performance especially in scenarios involving frequent creation and destruction of small objects.
+
+**Features of small_unique_ptr:**
+- Stores small objects inline if their size fits within a predefined internal buffer size.
+- Falls back to dynamic heap allocation for larger objects.
+- Maintains unique ownership semantics similar to unique_ptr.
+- Provides standard smart pointer interface (operator*, operator->, get(), release(), reset(), etc.).
+- Supports move semantics while disabling copy semantics.
+- Balances performance optimization with the safety and convenience of RAII.
+
+By combining SOO with the well-understood and safe interface of `unique_ptr`, `small_unique_ptr` offers an efficient way to manage dynamically or automatically stored objects with a single abstraction.
+
+**How do we choose the buffer size?**
+You (or as did I) may wonder:  How do we decide on the buffer size so that storing objects on the stack yields the greatest performance benefit compared to heap allocation? If the buffer size is **too small**, many objects won’t fit inline and will still be heap-allocated, making `small_unique_ptr` almost as costly as a regular `unique_ptr`. If the buffer size is **too large**, every `small_unique_ptr` instance becomes big, increasing memory usage and potentially reducing cache efficiency. The answer is that it depends!
+
+&nbsp;
+The optimal buffer size depends heavily on the requirements of our systems, the typical sizes of objects we plan to manage as well as our performance vs memory tradeoffs that we are willing to accept. Because of this variability, I designed `small_unique_ptr` to take a non-template parameter `BufferSize`, allowing us to customize the inline buffer size. This flexibility lets us benchmark and tune the buffer size for our specific use case, measuring the real-world impact on performance and memory.
+&nbsp;
+One important note is that the buffer must be properly aligned to hold any object safely without undefined behavior. Misalignment can cause crashes or degrade performance, due to **data structure alignment** requirements enforced by the hardware and compiler.
+
+`small_unique_ptr` is designed to fallback to heap allocation should the user provide an object whose size is bigger than the buffer size. Hence, it is on the user to check if the object is constructed inline in case of any performance issues. Other possibilities could be throwing an exception if the object is too big. But this would result in there being a runtime exception. Hence, I may eventually switch to checking at compile time if that is possible, so that the error is found at compile time if the size is too big, allowing the user to use `unique_ptr` instead for better efficiency (this may violate noexcept as an exception is thrown, preventing noexcept compile optimizations).
+
+### Unsupported / Future Additions for `small_unique_ptr`
+- I have yet to implement the `Deleter` template parameter and associated methods.
+- `swap()` method in order to swap 2 `small_unique_ptr` objects.
+- Query member functions (e.g `is_constructed_inline`, `stack_buffer_size`) which may help users check where objects are allocated.
+- `release()` is not implemented yet.
+- Other constructors/ methods that are present in the original `unique_ptr` class that are not present in `small_unique_ptr`.
