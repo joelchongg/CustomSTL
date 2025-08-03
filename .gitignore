@@ -1,12 +1,40 @@
-# Ignore build output
-build/
-*.o
-*.out
-*.exe
+# Build artifacts
+/build/
+/CMakeFiles/
+/CMakeCache.txt
+/Makefile
+/*.cbp
+/*.sln
+/*.vcxproj*
+/*.dir/
 *.obj
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
+*.o
+*.a
+*.lib
+*.dll
+*.exe
+*.out
 
-.vscode
+# CTest logs
+/Testing/
+LastTest.log
+LastTestsFailed.log
+
+# GTest build artifacts
+googletest/build/
+googletest/CMakeFiles/
+googletest/CMakeCache.txt
+googletest/Makefile
+googletest/*.sln
+googletest/*.vcxproj*
+
+# IDE folders
+.vscode/
+.idea/
+*.user
+*.userprefs
+*.suo
+
+# OS-specific
+.DS_Store
+Thumbs.db
