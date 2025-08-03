@@ -4,12 +4,23 @@ project(CustomSTL LANGUAGES CXX)
 # Use C++23
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Add GoogleTest
+add_subdirectory(googletest)
+
+# Add executable target for various tests
+add_executable(test_unique_ptr test/test_unique_ptr.cpp)
 
 # Include directory for headers
-include_directories(${PROJECT_SOURCE_DIR}/include)
+target_include_directories(test_unique_ptr PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
-# Add executable target for your unique_ptr test
-add_executable(test_unique_ptr test/test_unique_ptr.cpp)
+# Link GoogleTest and pthread
+if (WIN32)
+    target_link_libraries(test_unique_ptr gtest_main)
+else()
+    target_link_libraries(test_unique_ptr gtest_main pthread)
+endif()
 
 # Set warning flags per compiler
 if(MSVC)
@@ -17,3 +28,7 @@ if(MSVC)
 else()
     target_compile_options(test_unique_ptr PRIVATE -Wall -Wextra -Werror)
 endif()
+
+# Enable CTest testing
+enable_testing()
+add_test(NAME UniquePtrTests COMMAND test_unique_ptr)

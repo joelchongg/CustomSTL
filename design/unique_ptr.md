@@ -68,5 +68,8 @@ One important note is that the buffer must be properly aligned to hold any objec
 - I have yet to implement the `Deleter` template parameter and associated methods.
 - `swap()` method in order to swap 2 `small_unique_ptr` objects.
 - Query member functions (e.g `is_constructed_inline`, `stack_buffer_size`) which may help users check where objects are allocated.
-- `release()` is not implemented yet.
+- `release()` is not implemented yet (partially due to the unsafe practice when the object is constructed inline).
 - Other constructors/ methods that are present in the original `unique_ptr` class that are not present in `small_unique_ptr`.
+
+### `make_unique`
+The `make_unique` non-member function leverages **Named Return Value Optimization (NRVO)** which is mandatory copy elision since C++17. This allows our `unique_ptr` object to be constructed in place, avoiding any extra overhead from copying the object. The various `make_unique` function overloads follow the standard C++ implementation of `make_unique`. However, I have yet to implement them. They may or may not be implemented eventually.
