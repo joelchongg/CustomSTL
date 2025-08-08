@@ -138,7 +138,7 @@ namespace customSTL {
 
         constexpr const Deleter& get_deleter() const noexcept { return static_cast<const Deleter&>(*this); }
 
-        constexpr operator bool() const noexcept { return ptr_; }
+        constexpr explicit operator bool() const noexcept { return ptr_; }
 
         constexpr T& operator*() noexcept { return *ptr_; }
 
@@ -235,7 +235,7 @@ namespace customSTL {
 
         constexpr const Deleter& get_deleter() const noexcept { return static_cast<const Deleter&>(*this); }
 
-        constexpr operator bool() const noexcept { return ptr_; }
+        constexpr explicit operator bool() const noexcept { return ptr_; }
 
         constexpr T& operator[](std::size_t index) const { return ptr_[index]; }
     };
