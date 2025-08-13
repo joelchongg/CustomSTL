@@ -154,7 +154,7 @@ namespace CustomSTL {
             std::swap(control_ptr_, other.control_ptr_);
         }
 
-        unsigned long long use_count() const noexcept { return control_ptr_ ? control_ptr_->get_strong_count() : 0; }
+        long use_count() const noexcept { return control_ptr_ ? control_ptr_->get_strong_count() : 0; }
 
         constexpr bool owner_before(const shared_ptr& other) const noexcept { return control_ptr_ < other.control_ptr_; }
 
