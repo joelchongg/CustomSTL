@@ -183,6 +183,12 @@ namespace CustomSTL {
     constexpr bool operator==(const CustomSTL::shared_ptr<T> lhs, const CustomSTL::shared_ptr<U> rhs) noexcept {
         return lhs.get() == rhs.get();
     }
-}
+
+    template <typename T, typename... Args>
+    shared_ptr<T> make_shared(Args&&... args) {
+       // TODO
+       return nullptr; 
+    }
+} 
 
 #endif
