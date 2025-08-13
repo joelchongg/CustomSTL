@@ -14,6 +14,9 @@ namespace customSTL {
         using element_type = T;
         using pointer = T*;
 
+        template <typename D>
+        concept IsConstLValueRef = std::is_lvalue_reference_v<D> && std::is_const_v<std::remove_reference_t<D>>;
+
     private:
         pointer ptr_;
 
@@ -26,7 +29,7 @@ namespace customSTL {
             : ptr_ { nullptr }
         { }
 
-        explicit constexpr unique_ptr(pointer ptr) noexcept
+        constexpr explicit unique_ptr(pointer ptr) noexcept
             requires std::is_default_constructible_v<Deleter> && !std::is_pointer_v<Deleter>
             : ptr_ { ptr }
         { }
@@ -55,15 +58,13 @@ namespace customSTL {
             = delete;
 
         constexpr unique_ptr(pointer ptr, const Deleter& d) noexcept
-            requires std::is_lvalue_reference_v<Deleter> && 
-                     std::is_const_v<std::remove_reference_t<Deleter>>
+            requires IsConstLValueRef<Deleter>
             : Deleter { d }
             , ptr_ { ptr }
         { }
 
         constexpr unique_ptr(pointer ptr, const Deleter&& d) noexcept
-            requires std::is_lvalue_reference_v<Deleter> && 
-                     std::is_const_v<std::remove_reference_t<Deleter>>
+            requires IsConstLValueRef<Deleter> 
             = delete;
 
         template <typename U, typename E>
