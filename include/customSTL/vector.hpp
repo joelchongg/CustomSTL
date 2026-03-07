@@ -1,99 +1,112 @@
-#ifndef CUSTOM_STL_VECTOR_HPP
-#define CUSTOM_STL_VECTOR_HPP
+#pragma once
 
-#include <memory>
+#include <stdlib.h>
 
 namespace CustomSTL {
 
-    template <typename T>
-    class vector {
-    public:
-        using value_type = T;
-        using pointer = T*;
-        using size_type = std::size_t;
-        using difference_type = std::ptrdiff_t;
-        using reference = value_type&;
-        using const_reference = const value_type&;
+template <typename T>
+class vector {
 
-    private:
-        pointer first_;
-        pointer last_;
-        pointer endOfStorage_; // pointer to one past allocated block
+public:
+    using size_type = size_t;
 
-    public:
-        constexpr vector() noexcept
-            : first_ { nullptr }
-            , last_ { nullptr }
-            , endOfStorage_ { nullptr }
-        { }
+    explicit vector(size_t capacity = 0)
+        : data_ { nullptr }, last_ { nullptr }, end_ { nullptr } {
+        if (capacity > 0) {
+            // allocate raw bytes instead of calling constructor so that we only
+            // initialize what we need
+            data_ = static_cast<T*>(std::malloc(capacity * sizeof(T)));
+        
+            if (!data_) throw std::bad_alloc();
 
-        ~vector() noexcept {
-            delete[] first_;
-            first_ = last_ = endOfStorage_ = nullptr;
+            last_ = data_;
+            end_ = data_ + capacity;
+        }
+    }
+
+    ~vector() {
+        clear();
+        std::free(data_);
+    }
+
+    void push_back(const T& value) {
+        if (last_ == end_) {
+            reallocate();
         }
 
-        vector(const vector& other)
-            : first_ { new T[other.size()] }
-            , endOfStorage_ { first_ + other.size() }
-        {
-            size_t sz = other.size();
-            last_ = sz ? first_ + sz - 1 : first_;
+        new (last_) T(value);
+        ++last_;
+    }
 
-            for (size_t i = 0; i < sz; ++i) {
-                first_[i] = other[i];
-            }
+    void push_back(T&& value) {
+        if (last_ == end_) {
+            reallocate();
         }
 
-        vector(vector&& other)
-            : first_ { std::exchange(other.first_, nullptr) }
-            , last_ { std::exchange(other.last_, nullptr) }
-            , endOfStorage_ { std::exchange(other.endOfStorage_, nullptr) }
-        { }
+        new (last_) T(std::move(value));
+        ++last_;
+    }
 
-        vector& operator=(const vector& other) {
-            if (this == &other) {
-                return *this;
-            }
-
-            if (other.size() > capacity()) {
-                size_t sz = other.size();
-                std::unique_ptr<T[]> tmp(new T[sz]);
-                std::uninitialized_copy(other.begin(), other.end(), tmp.get());
-                
-                delete[] first_;
-
-                first_ = tmp.release();
-                last_ = first_ + sz - 1;
-                endOfStorage_ = first + sz;
-            } else {
-                std::copy(other.begin(), other.end(), first_);
-
-                // destroy excess elements
-                size_t old_size = size();
-                for (size_t i = other.size(); i < old_size; ++i) {
-                    first_[i].~T();
-                }
-
-                last_ = first_ + other.size() - 1;
-            }
-
-            return *this;
+    void pop_back() {
+        if (data_ == last_) [[unlikely]] {
+            throw std::logic_error("vector is empty");
         }
 
-        vector& operator=(vector&& other) {
-            if (this == &other) {
-                return *this;
+        --last_;
+        last_->~T();
+    }
+
+    void clear() {
+        while (last_ != data_) {
+            --last_;
+            last_->~T();
+        }
+    }
+
+    ptrdiff_t size() {
+        return last_ - data_;
+    }
+
+    ptrdiff_t capacity() {
+        return end_ - data_; 
+    }
+
+private:
+
+    void reallocate() {
+        ptrdiff_t old_capacity = last_ - data_;
+        ptrdiff_t new_capacity = old_capacity == 0 ? 1 : old_capacity << 1; // exponential increment for reallocation
+
+        if constexpr (std::is_trivially_copyable_v<T>) {
+            // realloc may reallocate a different memory location if it cant extend
+            // realloc does a memcpy so we should ideally only do it when T is POD
+            T* new_data = static_cast<T*>(std::realloc(data_, new_capacity * sizeof(T)));
+            if (!new_data) throw std::bad_alloc();
+
+            data_ = new_data;
+            last_ = data_ + old_capacity;
+            end_ = data_ + new_capacity;
+        } else {
+            T* new_data = static_cast<T*>(std::malloc(new_capacity * sizeof(T)));
+            if (!new_data) throw std::bad_alloc();
+
+            for (size_t i = 0; i < old_capacity; ++i) {
+                new (new_data + i) T(std::move_if_noexcept(data_[i]));
+                data_[i].~T();
             }
 
-            delete[] first_;
+            std::free(data_);
 
-            first_ = std::exchange(other.first_, nullptr);
-            last_ = std::exchange(other.last_, nullptr);
-            endOfStorage_ = std::exchange(other.endOfStorage_, nullptr);
-
-            return *this;
+            data_ = new_data;
+            last_ = data_ + old_capacity;
+            end_ = data_ + new_capacity;
         }
-    };
-}
+    }
 
-#endif
+    T* data_;
+    T* last_;
+    T* end_;
+
+};
+
+} // namespace CustomSTL

@@ -3,7 +3,7 @@
 
 #include <type_traits>
 
-namespace customSTL {
+namespace CustomSTL {
     template <typename S, typename T, bool = std::is_empty<T>::value && !std::is_final<T>::value>
     class CompressedPair;
 

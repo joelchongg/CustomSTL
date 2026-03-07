@@ -6,16 +6,16 @@
 #include <type_traits>
 #include <utility>
 
-namespace customSTL {
+namespace CustomSTL {
+
+    template <typename D>
+    concept IsConstLValueRef = std::is_lvalue_reference_v<D> && std::is_const_v<std::remove_reference_t<D>>;
 
     template <typename T, typename Deleter = std::default_delete<T>>
     class unique_ptr : private Deleter {
     public:
         using element_type = T;
         using pointer = T*;
-
-        template <typename D>
-        concept IsConstLValueRef = std::is_lvalue_reference_v<D> && std::is_const_v<std::remove_reference_t<D>>;
 
     private:
         pointer ptr_;
@@ -30,25 +30,25 @@ namespace customSTL {
         { }
 
         constexpr explicit unique_ptr(pointer ptr) noexcept
-            requires std::is_default_constructible_v<Deleter> && !std::is_pointer_v<Deleter>
+            requires std::is_default_constructible_v<Deleter> && (!std::is_pointer_v<Deleter>)
             : ptr_ { ptr }
         { }
 
         constexpr unique_ptr(pointer ptr, const Deleter& d) noexcept
-            requires !std::is_reference_v<Deleter> && std::copy_constructible<Deleter>
+            requires (!std::is_reference_v<Deleter>) && std::copy_constructible<Deleter>
             : Deleter { d }
             , ptr_ { ptr }
         { }
 
         constexpr unique_ptr(pointer ptr, Deleter&& d) noexcept
-            requires !std::is_reference_v<Deleter> && std::move_constructible<Deleter>
+            requires (!std::is_reference_v<Deleter>) && std::move_constructible<Deleter>
             : Deleter { std::move(d) }
             , ptr_ { ptr }
         { }
 
         constexpr unique_ptr(pointer ptr, Deleter& d) noexcept
             requires std::is_lvalue_reference_v<Deleter> &&
-                     !std::is_const_v<std::remove_reference_t<Deleter>>
+                     (!std::is_const_v<std::remove_reference_t<Deleter>>)
             : Deleter { d }
             , ptr_ { ptr }
         { }
@@ -69,9 +69,9 @@ namespace customSTL {
 
         template <typename U, typename E>
         constexpr unique_ptr(unique_ptr<U, E>&& other) noexcept
-            requires !std::same_as<unique_ptr<U, E>, unique_ptr<T, Deleter>> && 
-                     std::convertible_to<unique_ptr<U,E>::pointer, pointer> &&
-                     !std::is_array_v<U> &&
+            requires (!std::same_as<unique_ptr<U, E>, unique_ptr<T, Deleter>>) && 
+                     std::convertible_to<typename unique_ptr<U,E>::pointer, pointer> &&
+                     (!std::is_array_v<U>) &&
                      (
                         (std::is_reference_v<Deleter> && std::same_as<E, Deleter>) ||
                         (!std::is_reference_v<Deleter> && std::convertible_to<E, Deleter>)
@@ -170,7 +170,7 @@ namespace customSTL {
         { }
 
         constexpr unique_ptr(pointer ptr) noexcept
-            requires std::is_default_constructible_v<Deleter> && !std::is_pointer_v<Deleter>
+            requires std::is_default_constructible_v<Deleter> && (!std::is_pointer_v<Deleter>)
             : ptr_ { ptr }
         { }
 
