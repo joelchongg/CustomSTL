@@ -1,19 +1,36 @@
 #pragma once
 
+#include <array>
+#include <concepts>
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <stdexcept>
 #include <unistd.h>
 #include <utility>
+#include <vector>
 
 #include "TCPSocket.hpp"
 
 namespace network {
 
+template <typename T>
+concept HasOnDataMethod = requires(T obj, int fd, void* buf, int bytes) { 
+    { obj.on_data(fd, buf, bytes) } -> std::same_as<int>;
+};
+
+template <HasOnDataMethod MessageHandler>
 class EpollReactor {
+private:
+    // ConnectionState struct is used to have a buffer for each file descriptor in the interest list
+    // This ensures that we do not keep creating local temporary buffers
+    struct ConnectionState {
+        std::array<char, 8192> data{};
+        size_t offset{};
+    };
+
 public:
-    EpollReactor() 
-        : epoll_fd_ { epoll_create1(EPOLL_CLOEXEC) } {
+    EpollReactor(MessageHandler& handler) 
+        : epoll_fd_ { epoll_create1(EPOLL_CLOEXEC) }, handler_ { handler } {
         if (epoll_fd_ == -1) {
             throw std::runtime_error("Unable to create epoll instance.");
         }
@@ -64,54 +81,62 @@ public:
     }
 
     void run(TCPSocket& server_socket) {
-        struct epoll_event events[MAX_EVENTS];
-        int ready_count = epoll_wait(epoll_fd_, events, MAX_EVENTS, -1); // -1 to block until an event occurs
+        while (true) {
 
-        for (int i = 0; i < ready_count; ++i) {
-            int fd = events[i].data.fd;
-            // a new client is trying to connect, accept them if possible
-            if (server_socket.get_fd() == fd) {
-                while (true) {
-                    int client_fd = server_socket.accept();
-                    if (client_fd == -1) {
-                        break;
-                    }
+            struct epoll_event events[MAX_EVENTS];
+            int ready_count = epoll_wait(epoll_fd_, events, MAX_EVENTS, -1); // -1 to block until an event occurs
 
-                    std::cout << "Accepting client connection.\n";
-                    
-                    int client_fd_flags = fcntl(client_fd, F_GETFL, 0);
-                    if (client_fd_flags == -1 || fcntl(client_fd, F_SETFL, client_fd_flags | O_NONBLOCK) == -1) {
-                        std::cout << "Unable to set client file descriptor as non blocking.\n";
-                        close(client_fd);
-                        continue;
-                    };
-                    add_socket(client_fd);
+            if (ready_count == -1) {
+                if (errno == EINTR) {
+                    continue;
                 }
-            } else {
-                // a client socket woke up instead
-                // Note: make sure to read all of the data as we are using edge triggered. See man page for details
-                printf("Received from client: ");
-                while (true) {
-                    char buffer[MAX_BUFFER_SIZE];
-                    int bytes_received = recv(fd, buffer, MAX_BUFFER_SIZE - 1, 0);
-                    if (bytes_received == -1) {
-                        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                            // no more data left in the buffer
+                throw std::runtime_error("Unexpected error occurred during epoll_wait.");
+            }
+    
+            for (int i = 0; i < ready_count; ++i) {
+                int fd = events[i].data.fd;
+                // a new client is trying to connect, accept them if possible
+                if (server_socket.get_fd() == fd) {
+                    while (true) {
+                        int client_fd = server_socket.accept();
+                        if (client_fd == -1) {
                             break;
                         }
-                        // unexpected error, close the client file descriptor
-                        std::cout << "Unexpected error occurred.\n";
-                        close(fd);
-                        break;
-                    } else if (bytes_received == 0) {
-                        // client disconnected
-                        std::cout << "Client has disconnected.\n";
-                        close(fd);
-                        break;
-                    } else {
-                        // make use of data, can be modified for actual use
-                        buffer[bytes_received] = '\0';
-                        printf("%s", buffer);
+    
+                        int client_fd_flags = fcntl(client_fd, F_GETFL, 0);
+                        if (client_fd_flags == -1 || fcntl(client_fd, F_SETFL, client_fd_flags | O_NONBLOCK) == -1) {
+                            close(client_fd);
+                            continue;
+                        };
+                        add_socket(client_fd);
+                    }
+                } else {
+                    // a client socket woke up instead
+                    // Note: make sure to read all of the data as we are using edge triggered. See man page for details
+                    while (true) {
+                        ConnectionState& buffer = fd_buffers[fd];
+                        int bytes_received = recv(fd, &buffer.data[buffer.offset], 8192 - buffer.offset, 0);
+                        if (bytes_received == -1) {
+                            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                                // no more data left in the buffer
+                                break;
+                            }
+                            // unexpected error, close the client file descriptor
+                            buffer.offset = 0;
+                            close(fd);
+                            break;
+                        } else if (bytes_received == 0) {
+                            // client disconnected
+                            buffer.offset = 0; // reset buffer for next file descriptor use
+                            close(fd);
+                            break;
+                        } else {
+                            // process data
+                            buffer.offset += bytes_received;
+                            int bytes_consumed = handler_.on_data(fd, buffer.data.data(), buffer.offset);
+                            std::memmove(buffer.data.data(), &buffer.data[bytes_consumed], buffer.offset - bytes_consumed);
+                            buffer.offset = buffer.offset - bytes_consumed;
+                        }
                     }
                 }
             }
@@ -121,9 +146,13 @@ public:
     int get_epollfd() { return epoll_fd_; }
 
 private:
+    std::vector<ConnectionState> fd_buffers = std::vector<ConnectionState>(MAX_CONNECTIONS);
+    MessageHandler& handler_;
     int epoll_fd_ { -1 };
+
     static const int MAX_EVENTS { 64 };
-    static const int MAX_BUFFER_SIZE { 1000 }; // should be tuned accordingly.
+    static const int MAX_BUFFER_SIZE { 4096 }; // should be tuned accordingly (align with page size)
+    static const int MAX_CONNECTIONS { 1000 }; // should be tuned when we have more information
 
     using TCPSocket = network::TCPSocket;
 };

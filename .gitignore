@@ -35,6 +35,9 @@ googletest/*.vcxproj*
 *.userprefs
 *.suo
 
+#clangd settings
+.clangd
+
 # OS-specific
 .DS_Store
 Thumbs.db
