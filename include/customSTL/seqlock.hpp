@@ -8,6 +8,13 @@
 
 namespace CustomSTL {
 
+/*
+* Seqlock implementation is used as a reader writer lock
+* but without the issue of write starvation.
+* Current implementation supports single writer but multiple readers.
+* Readers may get out of sync if they process too slowly.
+* This can be detected by the use of generations.
+*/
 template <typename T, std::size_t Capacity>
 class SeqLockRingBuffer {
     static_assert((Capacity & (Capacity - 1)) == 0, "Capacity must be a power of 2");
